@@ -1,157 +1,169 @@
-import { React, useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import {useCallback, useEffect, useRef, useState} from 'react';
+import {useBodyBackground} from '../hooks/useBodyBackground';
 import styles from './Nback.module.css';
 
-let items, interval;
-let iOrder, pOrder;
-let score, iOk, pOk;
-let scoreTimer, itemTimer;
-let nback;
+const ITEMS_COLORS = ['red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'orange', 'grey', 'black'];
+const ITEMS_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-const Nback = () => {
-	const check = () => {
-		let isItem = this.id === 'item';
-		let order = isItem ? iOrder : pOrder;
-		let n = order.length - 1;
+export default function Nback() {
+  useBodyBackground('#c1d3e3');
 
-		if (order[n] === order[n - nback]) {
-			changeScore(1);
+  const [nBack, setNBack] = useState(2);
+  const [useNums, setUseNums] = useState(false);
+  const [score, setScore] = useState(0);
+  const [scoreColor, setScoreColor] = useState('black');
+  const [activeCell, setActiveCell] = useState({pos: null, val: null});
+  const [counter, setCounter] = useState(null);
+  const [isButtonsDisabled, setIsButtonsDisabled] = useState(true);
 
-			if (isItem) {
-				document.getElementById('item').disabled = true;
-				iOk = true;
-			}
-			else {
-				document.getElementById('position').disabled = true;
-				pOk = true;
-			}
-		} else {
-			changeScore(-1);
-		}
-	}
+  const gameState = useRef({
+    items: [], positions: [], pickedItem: false, pickedPos: false, timer: null, countdown: null,
+  });
 
-	const changeScore = (d) => {
-		score += d;
-		document.getElementById(styles.score).innerText = 'Score: ' + score;
-		document.getElementById(styles.score).style.color = d > 0 ? 'green' : 'red';
+  const stopGame = useCallback(() => {
+    if (gameState.current.timer) clearInterval(gameState.current.timer);
+    if (gameState.current.countdown) clearInterval(gameState.current.countdown);
+    setActiveCell({pos: null, val: null});
+    setIsButtonsDisabled(true);
+  }, []);
 
-		scoreTimer.push(setTimeout(() => {
-			document.getElementById(styles.score).style.color = 'black';
-			scoreTimer.shift();
-		}, 1000));
-	}
+  const changeScore = (x) => {
+    setScore(prev => prev + x);
+    setScoreColor(x > 0 ? 'green' : 'red');
+    setTimeout(() => setScoreColor('black'), 500);
+  };
 
-	useEffect(() => {
-		scoreTimer = []; itemTimer = [];
-		nback = document.getElementById('nback').value
-		let useNums = document.getElementById('numbers').checked;
-		items = useNums ? [1, 2, 3, 4, 5, 6, 7, 8, 9] :
-			['red', 'green', 'blue', 'yellow',
-				'magenta', 'cyan', 'orange', 'grey', 'black'];
+  const gameStep = useCallback(() => {
+    const {items, positions, pickedItem, pickedPos} = gameState.current;
+    const n = items.length;
 
-		document.getElementById(styles.field).innerHTML = '';
-		document.getElementById(styles.score).innerText = 'Score: 0';
-		document.getElementById('item').disabled = true;
-		document.getElementById('position').disabled = true;
+    if (n >= nBack) {
+      const itemMatch = items[n - 1] === items[n - 1 - nBack];
+      const posMatch = positions[n - 1] === positions[n - 1 - nBack];
 
-		clearInterval(interval);
+      if ((itemMatch && !pickedItem) || (posMatch && !pickedPos)) {
+        changeScore(-1);
+      }
+    }
 
-		let field = document.getElementById(styles.field);
-		for (let i = 0; i < 3; ++i) {
-			let row = field.insertRow(i);
-			for (let j = 0; j < 3; ++j) {
-				let cell = row.insertCell(j);
-				cell.id = 'i' + (3 * i + j + 1);
-			}
-		}
+    const newPos = Math.floor(Math.random() * 9) + 1;
+    const newVal = Math.floor(Math.random() * 9);
 
-		let timeleft = 4;
-		let cCell = document.getElementById('i5');
-		cCell.innerText = '4';
-		cCell.style.color = '#cccccc';
-		let timer = setInterval(() => {
-			cCell.innerText = --timeleft;
+    gameState.current.items.push(newVal);
+    gameState.current.positions.push(newPos);
+    gameState.current.pickedItem = false;
+    gameState.current.pickedPos = false;
 
-			if (timeleft <= 0) {
-				clearInterval(timer);
-				cCell.innerText = '';
-				cCell.style.color = 'black';
-			}
-		}, 1000);
+    setActiveCell({pos: newPos, val: newVal});
+    setIsButtonsDisabled(false);
 
-		score = 0;
-		iOrder = []; pOrder = [];
-		let instance = this;
-		interval = setInterval(function () {
-			let n = iOrder.length - 1;
-			if (n - nback >= 0) {
-				if (!iOk && iOrder[n] === iOrder[n - nback]) {
-					debugger;
-					instance.changeScore(-1);
-				}
-				if (!pOk && pOrder[n] === pOrder[n - nback]) {
-					debugger;
-					instance.changeScore(-1);
-				}
-			}
+    setTimeout(() => {
+      setActiveCell({pos: null, val: null});
+    }, 1500);
+  }, [nBack]);
 
-			let pos = Math.floor(Math.random() * 9) + 1;
-			let item = Math.floor(Math.random() * 9);
+  const newGame = useCallback(() => {
+    stopGame();
+    setScore(0);
+    gameState.current.items = [];
+    gameState.current.positions = [];
 
-			iOrder.push(item);
-			pOrder.push(pos);
+    let count = 3;
+    setCounter(count);
 
-			document.getElementById('item').disabled = false;
-			document.getElementById('position').disabled = false;
+    gameState.current.countdown = setInterval(() => {
+      --count;
+      setCounter(count > 0 ? count : null);
+      if (count < 1) {
+        clearInterval(gameState.current.countdown);
+        gameStep();
+        gameState.current.timer = setInterval(gameStep, 3000);
+      }
+    }, 1000);
+  }, [stopGame, gameStep]);
 
-			if (useNums) {
-				document.getElementById('i' + pos).innerText = items[item];
-			} else {
-				document.getElementById('i' + pos).style.backgroundColor = items[item];
-			}
+  const handleCheck = (type) => {
+    const {items, positions, pickedItem, pickedPos} = gameState.current;
+    const n = items.length;
 
-			itemTimer.push(setTimeout(function () {
-				document.getElementById('i' + pos).innerText = '';
-				document.getElementById('i' + pos).style.backgroundColor = 'white';
-				itemTimer.shift();
-			}, 1500));
+    if (n <= nBack) {
+      changeScore(-1);
+      return;
+    }
 
-			iOk = pOk = false;
-		}, 4000);
+    if (type === 'item' && pickedItem) return;
+    if (type === 'pos' && pickedPos) return;
 
-		return () => {
-			scoreTimer.forEach(clearTimeout);
-			itemTimer.forEach(clearTimeout);
-			clearInterval(interval);
-		}
-	})
+    const isMatch = type === 'item' ? items[n - 1] === items[n - 1 - nBack] : positions[n - 1] === positions[n - 1 - nBack];
 
-	return (
-		<>
-			<header>
-				<h1><NavLink to='/'>suraj</NavLink></h1>
-				<style>{'body { background-color: #c1d3e3; }'}</style>
-			</header>
-			<main id={styles.main}>
-				<table>
-					<caption>
-						<button id={styles.new} onClick={useEffect}>NEW</button>
-						<label for='nback'>N-back:</label>
-						<input id='nback' type='number' value='2' min='2' max='99' onChange={useEffect} />&nbsp;
-						<label for='numbers'>Numbers:</label>
-						<input id='numbers' type='checkbox' onChange={useEffect} />
-						<label id={styles.score}>Score: 0</label>
-					</caption>
-					<tbody id={styles.field}></tbody>
-				</table>
-				<button id='item' class={styles.bottom} onClick={check}>ITEM</button>&nbsp;
-				<button id='position' class={styles.bottom} onClick={check}>POSITION</button>
-			</main>
-			<footer>
-				<a href='https://t.me/ZzzoOk'>ZzzoOk</a>
-			</footer>
-		</>
-	);
+    if (isMatch) {
+      changeScore(1);
+      if (type === 'item') gameState.current.pickedItem = true;
+      if (type === 'pos') gameState.current.pickedPos = true;
+    } else {
+      changeScore(-1);
+    }
+  };
+
+  useEffect(() => {
+    newGame();
+    return stopGame;
+  }, [nBack, useNums, newGame, stopGame]);
+
+  return (<main>
+    <table>
+      <caption>
+        <button type='button' className='left' onClick={newGame}>NEW</button>
+        <label htmlFor='nback'>N-back:
+          <input
+            id='nback'
+            type='number'
+            value={nBack}
+            min='1' max='10'
+            onChange={e => setNBack(Math.max(1, Math.min(10, Number(e.target.value))))}
+          />
+        </label>&nbsp;
+        <label htmlFor='numbers'>Numbers:
+          <input
+            id='numbers'
+            type='checkbox'
+            checked={useNums}
+            onChange={e => setUseNums(e.target.checked)}
+          />
+        </label>
+        <span className='right' style={{color: scoreColor}}>Score: {score}</span>
+      </caption>
+      <tbody id={styles.field}>
+      {[0, 1, 2].map(row => (<tr key={row}>
+        {[1, 2, 3].map(col => {
+          const id = row * 3 + col;
+          const isActive = activeCell.pos === id;
+          const backgroundColor = isActive && !useNums ? ITEMS_COLORS[activeCell.val] : 'white';
+          return (<td key={id} style={{backgroundColor}}>
+            {isActive && useNums ? ITEMS_NUMS[activeCell.val] : ''}
+            {id === 5 && counter !== null && <span className={styles.counter}>{counter}</span>}
+          </td>);
+        })}
+      </tr>))}
+      </tbody>
+    </table>
+
+    <div>
+      <button
+        className={styles.button}
+        disabled={isButtonsDisabled}
+        onClick={() => handleCheck('item')}
+      >
+        ITEM
+      </button>
+      &nbsp;
+      <button
+        className={styles.button}
+        disabled={isButtonsDisabled}
+        onClick={() => handleCheck('pos')}
+      >
+        POSITION
+      </button>
+    </div>
+  </main>);
 }
-
-export default Nback;

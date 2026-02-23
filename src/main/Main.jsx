@@ -1,40 +1,43 @@
-import { React, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import {useState} from 'react';
+import {NavLink} from 'react-router-dom';
+import {useBodyBackground} from '../hooks/useBodyBackground';
 import styles from './Main.module.css';
 
-const Main = () => {
-    const [hidden, hide] = useState(true);
+export default function Main() {
+  const [isHidden, setIsHidden] = useState(true);
 
-    return (
-        <>
-            <header>
-                <h1>suraj</h1>
-                <style>{'body { background-color: white; }'}</style>
-            </header>
-            <main id={styles.main}>
-                <div>
-                    <a href='http://www.thght.ru/'>мой блог</a>
-                </div>
-                <div>
-                    <a href='http://arith.ru/'>упражнения для ума</a>
-                </div>
-                <div onClick={() => hide(!hidden)}>
-                    <a href='#'>упражнения для памяти</a>
-                </div>
-                <div id={hidden ? styles.hidden : null}>
-                    <NavLink to='/imt'>матрица памяти</NavLink>&nbsp;
-                    <NavLink to='/nback'>задача n-назад</NavLink><br /><br />
-                    <NavLink to='/simon'>саймон</NavLink>
-                </div>
-                <div>
-                    <a href='/eye-test'>eye test</a>
-                </div>
-            </main>
-            <footer>
-                <a href='https://t.me/ZzzoOk'>ZzzoOk</a>
-            </footer>
-        </>
-    );
+  useBodyBackground('white');
+
+  const toggleMemoryGames = (e) => {
+    e.preventDefault();
+    setIsHidden(!isHidden);
+  };
+
+  return (<main id={styles.main}>
+    <div>
+      <a href='https://www.thght.ru/' target='_blank' rel='noopener noreferrer'>
+        мой блог
+      </a>
+    </div>
+
+    <div>
+      <a href='https://arith.ru/' target='_blank' rel='noopener noreferrer'>
+        упражнение для ума
+      </a>
+    </div>
+
+    <div onClick={toggleMemoryGames}>
+      <a href=''>упражнения для памяти</a>
+    </div>
+
+    <div className={isHidden ? styles.hidden : null}>
+      <NavLink to='/imt'>матрица памяти</NavLink>&nbsp;
+      <NavLink to='/nback'>задача n-назад</NavLink><br/><br/>
+      <NavLink to='/simon'>саймон</NavLink>
+    </div>
+
+    <div>
+      <a href='/eye-test'>eye test</a>
+    </div>
+  </main>);
 }
-
-export default Main;

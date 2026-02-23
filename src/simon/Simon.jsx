@@ -1,193 +1,115 @@
-import { React, useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import {useState, useEffect, useRef, useCallback} from 'react';
+import {useBodyBackground} from '../hooks/useBodyBackground';
 import styles from './Simon.module.css';
 
-const Simon = () => {
-	const [level, setLevel] = useState(0);
-	const [isDisabled, setDisabled] = useState(true);
-	const [redColor, setRedColor] = useState();
-	const [greenColor, setGreenColor] = useState();
-	const [blueColor, setBlueColor] = useState();
-	const [yellowColor, setYellowColor] = useState();
-	let queue = [];
-	let processing = false;
-	let timer = [];
+const COLORS = [
+  {id: 0, normal: '#f45325', active: '#f78b6e'},
+  {id: 1, normal: '#81bd06', active: '#97df07'},
+  {id: 2, normal: '#05a5ef', active: '#69cdfc'},
+  {id: 3, normal: '#ffba07', active: '#ffd466'}];
 
-	const red = () => {
-		setRedColor('#f78b6e');
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-		timer.push(setTimeout(() => {
-			setRedColor('#f45325');
-			timer.shift();
-		}, 500));
-	}
+export default function Simon() {
+  useBodyBackground('#c1d3e3');
 
-	const green = () => {
-		setGreenColor('#97df07');
+  const [level, setLevel] = useState(0);
+  const [litCell, setLitCell] = useState(null);
+  const [isClickable, setIsClickable] = useState(false);
+  const [isStartDisabled, setIsStartDisabled] = useState(true);
 
-		timer.push(setTimeout(() => {
-			setGreenColor('#81bd06');
-			timer.shift();
-		}, 500));
-	}
+  const sequence = useRef([]);
+  const userStep = useRef(0);
 
-	const blue = () => {
-		setBlueColor('#69cdfc');
+  const flash = async (id) => {
+    setLitCell(id);
+    await sleep(500);
+    setLitCell(null);
+  };
 
-		timer.push(setTimeout(() => {
-			setBlueColor('#05a5ef');
-			timer.shift();
-		}, 500));
-	}
+  const playSequence = useCallback(async () => {
+    setIsClickable(false);
+    await sleep(500);
 
-	const yellow = () => {
-		setYellowColor('#ffd466');
+    const newColor = Math.floor(Math.random() * 4);
+    sequence.current.push(newColor);
+    setLevel(sequence.current.length);
 
-		timer.push(setTimeout(() => {
-			setYellowColor('#ffba07');
-			timer.shift();
-		}, 500));
-	}
+    for (const colorId of sequence.current) {
+      await sleep(500);
+      await flash(colorId);
+    }
 
-	const check = (color) => {
-		if (processing && queue.pop() !== color) {
-			alert('GAME OVER!');
+    userStep.current = 0;
+    setIsClickable(true);
+  }, []);
 
-			setLevel(1);
-			queue = [];
-			processing = false;
+  const handleClick = async (id) => {
+    if (!isClickable) return;
 
-			setLevel(0);
+    if (id !== sequence.current[userStep.current]) {
+      setIsClickable(false);
+      alert(`GAME OVER! Score: ${level - 1}`);
+      sequence.current = [];
+      setLevel(0);
+      return;
+    }
 
-			return;
-		}
+    userStep.current++;
+    const isRoundOver = userStep.current === sequence.current.length;
 
-		switch (color) {
-			case 0:
-				red();
-				break;
-			case 1:
-				green();
-				break;
-			case 2:
-				blue();
-				break;
-			case 3:
-				yellow();
-				break;
-			default:
-				break;
-		}
+    if (isRoundOver) setIsClickable(false);
 
-		if (processing && queue.length < 1) {
-			setLevel(level + 1);
+    await flash(id);
 
-			timer.push(setTimeout(() => {
-				init();
-				timer.shift();
-			}, 1500));
-		}
-	}
+    if (isRoundOver) {
+      await sleep(1000);
+      playSequence();
+    }
+  };
 
-	useEffect(() => {
-		timer = [];
+  useEffect(() => {
+    const intro = async () => {
+      for (const id of [0, 1, 3, 2]) {
+        await flash(id);
+        await sleep(100);
+      }
+      setIsStartDisabled(false);
+    };
+    intro();
+  }, []);
 
-		timer.push(setTimeout(() => {
-			setRedColor('#f45325');
-			timer.shift();
-		}, 500));
-		timer.push(setTimeout(() => {
-			setGreenColor('#81bd06');
-			timer.shift();
-		}, 1000));
-		timer.push(setTimeout(() => {
-			setYellowColor('#ffba07');
-			timer.shift();
-		}, 1500));
-		timer.push(setTimeout(() => {
-			setBlueColor('#05a5ef');
-			timer.shift();
-		}, 2000));
-		timer.push(setTimeout(() => {
-			setDisabled(false);
-		}, 2500));
-
-		return () => {
-			timer.forEach(clearTimeout);
-		}
-	}, [])
-
-	const init = () => {
-		queue = [];
-		processing = true;
-
-		(function lightUp(i) {
-			timer.push(setTimeout(() => {
-				let color = Math.floor(Math.random() * 4);
-
-				queue.push(color);
-
-				switch (color) {
-					case 0:
-						red();
-						break;
-					case 1:
-						green();
-						break;
-					case 2:
-						blue();
-						break;
-					case 3:
-						yellow();
-						break;
-					default:
-						break;
-				}
-
-				if (--i) {
-					lightUp(i);
-				} else {
-					queue = queue.reverse();
-				}
-
-				timer.shift();
-			}, 1000));
-		}(level));
-	}
-
-	const Cell = (props) => {
-		return <td id={props.id} style={{ backgroundColor: props.color }} onMouseDown={() => check(+props.id)}></td>;
-	}
-
-	return (
-		<>
-			<header>
-				<h1><NavLink to='/'>suraj</NavLink></h1>
-				<style>{'body, table { background-color: #c1d3e3; }'}</style>
-			</header>
-			<main>
-				<table>
-					<caption>
-						<button id={styles.new} onClick={init} disabled={isDisabled}>NEW</button>
-						<label id={styles.level}>Level: {level}</label>
-					</caption>
-					<tbody>
-						<tr>
-							<Cell id='0' color={redColor} />
-							<Cell id='1' color={greenColor} />
-						</tr>
-						<tr>
-							<Cell id='2' color={blueColor} />
-							<Cell id='3' color={yellowColor} />
-						</tr>
-					</tbody>
-				</table>
-			</main>
-			<footer>
-				<a href='https://t.me/ZzzoOk'>ZzzoOk</a>
-			</footer>
-		</>
-	);
+  return (<main>
+    <table>
+      <caption>
+        <button type='button' className='left' onClick={() => {
+          sequence.current = [];
+          playSequence();
+        }} disabled={isStartDisabled}>
+          NEW
+        </button>
+        <label className='right'>Level: {level}</label>
+      </caption>
+      <tbody>
+      <tr>
+        <Cell id={0} activeId={litCell} onClick={handleClick}/>
+        <Cell id={1} activeId={litCell} onClick={handleClick}/>
+      </tr>
+      <tr>
+        <Cell id={2} activeId={litCell} onClick={handleClick}/>
+        <Cell id={3} activeId={litCell} onClick={handleClick}/>
+      </tr>
+      </tbody>
+    </table>
+  </main>);
 }
 
-export default Simon;
+function Cell({id, activeId, onClick}) {
+  const colorConfig = COLORS[id];
+  return (<td className={styles}
+    onClick={() => onClick(id)}
+    style={{
+      backgroundColor: activeId === id ? colorConfig.active : colorConfig.normal, cursor: 'pointer',
+    }}
+  />);
+}

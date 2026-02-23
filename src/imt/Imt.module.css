@@ -1,23 +1,15 @@
-#new {
-    float: left;
-}
-
-#hide {
-    float: right;
-}
-
 #imt td {
-    border: 1px solid #cccccc;
-    width: 70px;
-    height: 50px;
-    transition: all 0.2s;
-    font-size: 25px;
+  border: 1px solid #cccccc;
+  width: 70px;
+  height: 50px;
+  transition: all 0.2s;
+  font-size: 25px;
 }
 
-.numbers {
-    background-color: black;
+.hidden {
+  background-color: black;
 }
 
 .wrong {
-    background-color: red;
+  background-color: red;
 }
